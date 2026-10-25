@@ -58,3 +58,5 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+QR authentication was checked against the official passport.bilibili.com generate/poll endpoints on 2026-10-25. The current returned scan URL uses account.bilibili.com. No third-party authentication implementation was copied.

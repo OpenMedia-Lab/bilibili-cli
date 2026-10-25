@@ -497,3 +497,15 @@ fn replacement_part_with_lost_ack_is_reuploaded_before_finalization() {
     api.upload(&path, &media(original), &receipt, true).unwrap();
     assert_eq!(last_uploaded_bytes(&server.snapshot()), original);
 }
+
+#[test]
+fn ai_declaration_and_current_cover_host_survive_preparation() {
+    let metadata: Metadata = serde_json::from_value(json!({"title":"Fixture","tid":231,"tags":["AI"],"cover":"https://archive.biliimg.com/bfs/archive/fixture.png","creation_statement_id":1})).unwrap();
+    let upload: UploadReceipt = serde_json::from_value(json!({"schema_version":1,"owner_mid":123,"media":media(b"abcd"),"state":"complete","filename":"object"})).unwrap();
+    let prepared = metadata.prepare(&[upload]).unwrap();
+    assert_eq!(prepared.payload["creation_statement"]["id"], 1);
+    assert_eq!(
+        prepared.payload["cover"],
+        "https://archive.biliimg.com/bfs/archive/fixture.png"
+    );
+}

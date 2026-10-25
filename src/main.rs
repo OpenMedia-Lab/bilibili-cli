@@ -61,6 +61,8 @@ enum Command {
     },
     /// Read current creator-center category metadata (requires a session)
     Categories,
+    /// Read currently available creator declaration IDs
+    Statements,
     /// Validate local media and metadata; no network requests or remote draft
     Plan {
         #[arg(long)]
@@ -98,6 +100,13 @@ enum Command {
 
 #[derive(Subcommand)]
 enum Auth {
+    /// Scan the official Bilibili app QR; optional SVG file for graphical review
+    Login {
+        #[arg(long)]
+        qr_file: Option<PathBuf>,
+        #[arg(long, default_value_t = 180)]
+        timeout: u64,
+    },
     /// Import raw Cookie, Netscape, browser JSON, or biliup JSON (never an argv secret)
     Import {
         #[arg(long, required_unless_present = "stdin", conflicts_with = "stdin")]
@@ -166,6 +175,12 @@ fn status(path: Option<&Path>) -> Result<Value> {
 fn run(cli: Cli) -> Result<Value> {
     let session_path = cli.session.as_deref();
     match cli.command {
+        Command::Auth {
+            command: Auth::Login { qr_file, timeout },
+        } => {
+            let path = cli.session.map(Ok).unwrap_or_else(Session::default_path)?;
+            bilibili_cli::login::login(&path, qr_file.as_deref(), timeout)
+        }
         Command::Status
         | Command::Auth {
             command: Auth::Status,
@@ -212,6 +227,7 @@ fn run(cli: Cli) -> Result<Value> {
         }
         Command::Me => authenticated(session_path)?.me(),
         Command::Categories => authenticated(session_path)?.categories(),
+        Command::Statements => authenticated(session_path)?.statements(),
         Command::Archives {
             page,
             page_size,

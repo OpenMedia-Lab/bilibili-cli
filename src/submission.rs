@@ -31,6 +31,9 @@ pub struct Metadata {
     pub part_titles: Vec<String>,
     #[serde(default)]
     pub tid_v2: Option<u64>,
+    /// Current creator declaration ID from `bilibili statements`.
+    #[serde(default)]
+    pub creation_statement_id: Option<i64>,
 }
 fn original() -> u8 {
     1
@@ -78,9 +81,10 @@ impl Metadata {
                 .context("Cover must be a URL returned by bilibili cover upload")?;
             ensure!(
                 matches!(cover.scheme(), "http" | "https")
-                    && cover
-                        .host_str()
-                        .is_some_and(|h| h == "hdslb.com" || h.ends_with(".hdslb.com"))
+                    && cover.host_str().is_some_and(|h| h == "hdslb.com"
+                        || h.ends_with(".hdslb.com")
+                        || h == "biliimg.com"
+                        || h.ends_with(".biliimg.com"))
                     && cover.username().is_empty()
                     && cover.password().is_none(),
                 "Untrusted cover URL"
@@ -139,6 +143,10 @@ impl Metadata {
         if let Some(tid_v2) = self.tid_v2 {
             ensure!(tid_v2 > 0, "tid_v2 must be positive");
             payload["tid_v2"] = json!(tid_v2);
+        }
+        if let Some(id) = self.creation_statement_id {
+            ensure!(id != 0, "Creation statement ID cannot be zero");
+            payload["creation_statement"] = json!({"id": id});
         }
         let sha256 = hex::encode(Sha256::digest(serde_json::to_vec(
             &json!({"owner_mid":owner_mid,"payload":payload}),

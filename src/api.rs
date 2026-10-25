@@ -142,6 +142,15 @@ impl Api {
         );
         Ok(Value::Object(found))
     }
+    pub fn statements(&self) -> Result<Value> {
+        let data = envelope(
+            self.request(Method::GET, true, "/x/vupre/web/archive/pre", true)?,
+            "creator declarations",
+        )?;
+        data.get("neutral_mark")
+            .cloned()
+            .context("Creator declarations missing")
+    }
     pub fn upload_cover(&self, bytes: &[u8], mime: &str) -> Result<Value> {
         use base64::Engine;
         let data_url = format!(
@@ -157,9 +166,10 @@ impl Api {
         let parsed = url::Url::parse(url).context("Cover response contains an invalid URL")?;
         ensure!(
             matches!(parsed.scheme(), "http" | "https")
-                && parsed
-                    .host_str()
-                    .is_some_and(|h| h == "hdslb.com" || h.ends_with(".hdslb.com")),
+                && parsed.host_str().is_some_and(|h| h == "hdslb.com"
+                    || h.ends_with(".hdslb.com")
+                    || h == "biliimg.com"
+                    || h.ends_with(".biliimg.com")),
             "Cover response contains an untrusted URL"
         );
         Ok(json!({"url":url}))

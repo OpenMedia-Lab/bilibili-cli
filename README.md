@@ -28,9 +28,19 @@ cp examples/submission.json /path/to/submission.json
 bilibili plan --metadata /path/to/submission.json --video /path/to/video.mp4
 ```
 
-`video check` 验证 `.mp4` 扩展名、MP4 文件头、ffprobe 容器与视频流、有效时长，并计算 SHA-256；不转码、不渲染。它不能保证平台接受所有编码或内容。封面检查识别 JPEG/PNG 文件头与尺寸，采用本地 10 MiB 文件上限；平台还会执行自己的校验。
+`video check` 验证 `.mp4` 扩展名、MP4 文件头、ffprobe 容器与视频流、有效时长，并计算 SHA-256；不转码、不渲染。它不能保证平台接受所有编码或内容。封面检查识别 JPEG/PNG 文件头与尺寸，采用本地 10 MiB 文件上限；平台还会执行自己的校验。封面 URL 支持平台返回的 hdslb.com / biliimg.com 及其子域。
 
-## 导入已有账号会话
+## 扫码登录与已有账号会话
+
+```sh
+bilibili auth login --qr-file ./bilibili-login.svg
+# 使用 Bilibili App 扫码并确认；--timeout 默认 180 秒。
+```
+
+终端直接显示二维码；可选 SVG 必须是新文件，权限为 0600。扫码与手机确认分开显示，过期/超时不会替换原会话，只有新会话通过账号检查后才保存。二维码由 Bilibili 官方 passport 接口生成，兼容其当前 account.bilibili.com 跳转地址。
+
+### 导入浏览器会话
+
 
 先在 Bilibili 官网正常登录，再导入自己导出的 Cookie 文件。支持单行 `Cookie`、Netscape cookie jar、浏览器 JSON 数组、`{"cookies": {...}}` 及 biliup 的 `cookie_info.cookies`。需要 `SESSDATA` 和 `bili_jct`；带域名的导出仅接受 `bilibili.com` 及其子域。
 
@@ -53,6 +63,7 @@ bilibili video show BV17x411w7KC
 bilibili video show 170001
 bilibili archives --page 1 --page-size 20
 bilibili categories
+bilibili statements  # 当前可选的创作声明 ID
 ```
 
 公开视频详情无需会话。自己的稿件、分区元数据和个人信息需要会话。分区会变化，请从当前 `categories` 响应选择 `tid`，不要直接沿用示例数值；可选 `tid_v2` 用于平台提供的新版分区 ID。
@@ -88,7 +99,7 @@ bilibili submit --metadata /path/to/submission.json --upload /private/path/video
 bilibili submit --metadata /path/to/submission.json --upload /private/path/video.receipt.json --publish
 ```
 
-`--upload` 可重复，顺序决定分 P 顺序。`part_titles` 可在 metadata 中提供同样长度的标题数组，默认各 P 沿用总标题。支持标题、`tid`/`tid_v2`、标签、简介、动态、封面、原创/转载及来源、禁止转载；未知 metadata 字段会拒绝，防止拼写错误被静默忽略。原创 `copyright=1`，转载 `copyright=2` 且必须提供 `source`。本版不支持定时发布、编辑/删除已投稿件、合集、合作投稿、AI 创作声明或其他高级投稿字段；需要这些选项时请先通过官方创作中心处理，不要用缺少声明的 CLI 投稿。
+`--upload` 可重复，顺序决定分 P 顺序。`part_titles` 可在 metadata 中提供同样长度的标题数组，默认各 P 沿用总标题。支持标题、`tid`/`tid_v2`、标签、简介、动态、封面、原创/转载及来源、禁止转载；未知 metadata 字段会拒绝，防止拼写错误被静默忽略。原创 `copyright=1`，转载 `copyright=2` 且必须提供 `source`。通过 `bilibili statements` 读取当前创作声明选项，在 metadata 中设置 `creation_statement_id`；CLI 将其写入官方 Web 客户端使用的 `creation_statement: {id: ...}`。不要根据旧示例猜测声明 ID。当前不支持定时发布、编辑/删除已投稿件、合集、合作投稿及其他高级字段。
 
 发布请求前写入并同步一份投稿 receipt，默认按账号与完整 payload 的 SHA-256 存放在 OS 本地数据目录的 `bilibili-cli/submissions` 下。`--result /private/path/publish.receipt.json` 可指定位置。同一 receipt 存在时拒绝再试；不要通过换路径绕过它。该保护不是平台级幂等键，修改 metadata 或更换 result 路径会绕开原记录。
 
