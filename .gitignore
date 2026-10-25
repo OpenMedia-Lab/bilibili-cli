@@ -1,0 +1,12 @@
+/target/
+.DS_Store
+*.cookie
+*cookies*.json
+session.json
+*.receipt.json
+*.receipt.json.lock
+*.mp4
+*.mov
+*.mkv
+*.lock.tmp
+.env
