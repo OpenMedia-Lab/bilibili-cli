@@ -39,8 +39,11 @@ settings. A concurrent change requires a fresh snapshot and another review.
 This command supports an ordinary, already published **single-part** archive and
 one replacement upload. It refuses multipart, paid, interactive, staff and premiere
 archives. Existing explicit visibility, Dolby/lossless and recreation settings are
-retained. The original creation declaration is retained unless metadata specifies
-a new declaration. The archive's AID/BVID remain the target; the video part gets a
+retained. Bilibili's creator interface locks the creation declaration after
+publication: omit `creation_statement_id` to preserve it, or supply the same ID.
+Changing it is rejected locally. For a new submission, select the current option
+from `bilibili statements` (on the verification date, ID `1` is “含AI生成内容”).
+The archive's AID/BVID remain the target; the video part gets a
 new CID. The CLI does not promise migration of CID-specific features such as
 danmaku.
 
@@ -118,6 +121,8 @@ state establishes which version or collection order is available.
 `edit` 保留原 AID/BVID，替换素材会使用新的 CID，不删除或重发。先用 `archive`
 保存私有快照，再上传新素材；默认预览完全离线，加 `--publish` 才提交原位修改。
 提交前会校验账号、替换权限和快照是否过期。稿件处于审核或处理阶段时先等待。
+平台在投稿后锁定原生创作声明；原位编辑保留旧声明，不能承诺改成新的 AI 声明。
+新投稿从 `bilibili statements` 选择当前声明，2026-10-28 的「含AI生成内容」ID 为 `1`。
 
 `collection add` 把已公开的普通单 P 视频加入已有免费合集；已有成员直接返回，
 不会重复添加。`collection order` 使用 episode ID，并要求完整列出当前全部成员。

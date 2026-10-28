@@ -97,6 +97,12 @@ pub fn prepare_edit(
         a["staffs"].is_null() || a["staffs"].as_array().is_some_and(|s| s.is_empty()),
         "Editing collaborative archives is not supported"
     );
+    if let Some(id) = metadata.creation_statement_id {
+        ensure!(
+            a["creation_statement"]["id"].as_i64() == Some(id),
+            "Bilibili locks the creation declaration after publication; preserve the original declaration when editing"
+        );
+    }
     let prepared = metadata.prepare(uploads)?;
     ensure!(
         prepared.owner_mid == mid,
@@ -127,7 +133,7 @@ pub fn prepare_edit(
             payload[key] = a[key].clone();
         }
     }
-    if metadata.creation_statement_id.is_none() && !a["creation_statement"].is_null() {
+    if !a["creation_statement"].is_null() {
         payload["creation_statement"] = a["creation_statement"].clone();
     }
     Ok(

@@ -627,6 +627,24 @@ fn edit_rejects_stale_archive_and_missing_replacement_cid() {
         crate::revision::prepare_edit(&collaborative, &new_metadata(), &[replacement()]).is_err()
     );
 }
+
+#[test]
+fn edit_preserves_the_platform_locked_creation_declaration() {
+    let mut snapshot = edit_snapshot();
+    snapshot["archive"]["creation_statement"] = json!({"id":-1,"content":"内容无需标注"});
+    let mut metadata = new_metadata();
+    let plan = crate::revision::prepare_edit(&snapshot, &metadata, &[replacement()]).unwrap();
+    assert_eq!(plan["payload"]["creation_statement"]["id"], -1);
+    metadata.creation_statement_id = Some(-1);
+    assert!(crate::revision::prepare_edit(&snapshot, &metadata, &[replacement()]).is_ok());
+    metadata.creation_statement_id = Some(1);
+    assert!(
+        crate::revision::prepare_edit(&snapshot, &metadata, &[replacement()])
+            .unwrap_err()
+            .to_string()
+            .contains("locks")
+    );
+}
 fn section_fixture() -> Value {
     json!({"section":{"id":22,"seasonId":11,"type":1,"title":"Main","epCount":2},"episodes":[{"id":101,"aid":1,"order":1},{"id":102,"aid":2,"order":2}]})
 }
