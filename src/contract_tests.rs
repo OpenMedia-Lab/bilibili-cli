@@ -645,6 +645,22 @@ fn edit_preserves_the_platform_locked_creation_declaration() {
             .contains("locks")
     );
 }
+#[test]
+fn edit_serializes_recreation_switch_instead_of_archive_read_model() {
+    let mut snapshot = edit_snapshot();
+    for switch in [-1, 1] {
+        snapshot["archive"]["recreate"] = json!({"auth":1,"editable":1,"switch":switch});
+        let plan =
+            crate::revision::prepare_edit(&snapshot, &new_metadata(), &[replacement()]).unwrap();
+        assert_eq!(plan["payload"]["recreate"], switch);
+    }
+    snapshot["archive"]
+        .as_object_mut()
+        .unwrap()
+        .remove("recreate");
+    let plan = crate::revision::prepare_edit(&snapshot, &new_metadata(), &[replacement()]).unwrap();
+    assert_eq!(plan["payload"]["recreate"], -1);
+}
 fn section_fixture() -> Value {
     json!({"section":{"id":22,"seasonId":11,"type":1,"title":"Main","epCount":2},"episodes":[{"id":101,"aid":1,"order":1},{"id":102,"aid":2,"order":2}]})
 }

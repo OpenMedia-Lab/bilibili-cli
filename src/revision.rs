@@ -127,12 +127,14 @@ pub fn prepare_edit(
         "is_space_hidden",
         "is_dolby",
         "lossless_music",
-        "recreate",
     ] {
         if !a[key].is_null() {
             payload[key] = a[key].clone();
         }
     }
+    // Archive reads expose recreation capabilities as an object; the editor
+    // writes only its switch (1 enabled, -1 disabled), never that read model.
+    payload["recreate"] = json!(if a["recreate"]["switch"] == 1 { 1 } else { -1 });
     if !a["creation_statement"].is_null() {
         payload["creation_statement"] = a["creation_statement"].clone();
     }

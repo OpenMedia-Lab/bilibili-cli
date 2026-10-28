@@ -112,9 +112,14 @@ state establishes which version or collection order is available.
 - Local HTTP tests: edit identity/new CID, stale snapshot rejection, offline edit
   preview, authenticated collection preflight, full-order validation, ownership
   and completeness rejection, existing-member no-op, empty successful responses,
-  and uncertain/duplicate-attempt guards.
-- No live edit or collection mutation was performed for this implementation
-  check. Mock acceptance is not evidence of a completed platform edit.
+  uncertain/duplicate-attempt guards, and recreation switch serialization. The
+  archive read model exposes a recreation object; the editor sends its integer
+  switch, matching the official uploader's contract.
+- Separately authorized live verification: two single-part videos were replaced
+  in place, retaining their AID/BVID and collection episode order. Creator and
+  public reads confirmed the new CIDs and approved metadata. One new public video
+  was appended as the collection's third episode. These observations verify this
+  workflow; collection reordering remains covered by contract tests only.
 
 ## 中文要点
 
