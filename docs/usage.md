@@ -110,7 +110,8 @@ Unknown fields are rejected rather than ignored.
 Repeat `--upload` in the desired part order for multipart submissions. The default
 part title is the overall title. Declaration IDs are mapped to the web client's
 `creation_statement: {id: ...}` field; do not infer a permanent ID from examples.
-Scheduling, editing/deleting published submissions, collections and collaborative
+For single-part media replacement and existing collections, use
+[revisions and collections](revisions.md). Scheduling, deletion and collaborative
 submissions are outside this version's command surface.
 
 ## Submission and readback

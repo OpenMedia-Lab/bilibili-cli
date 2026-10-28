@@ -137,6 +137,7 @@ fn upos_upload_uses_exact_ranges_scoped_auth_and_reuses_completed_receipt() {
         .unwrap();
     assert_eq!(completed.state, "complete");
     assert_eq!(completed.filename.as_deref(), Some("object"));
+    assert_eq!(completed.cid, Some(7));
     let records = server.snapshot();
     let preupload = records
         .iter()
@@ -508,4 +509,282 @@ fn ai_declaration_and_current_cover_host_survive_preparation() {
         prepared.payload["cover"],
         "https://archive.biliimg.com/bfs/archive/fixture.png"
     );
+}
+
+fn edit_snapshot() -> Value {
+    json!({"archive":{"aid":170001,"bvid":"BV17x411w7KC","mid":123,"state":0,"title":"Old","desc":"Old body","tag":"Rust","tid":231,"is_only_self":0,"no_public":0,"creation_statement":{"id":1}},"videos":[{"cid":10,"filename":"old-file","title":"Old"}],"replace_check":{"can_replace":true},"in_season":true})
+}
+fn replacement() -> UploadReceipt {
+    serde_json::from_value(json!({"schema_version":1,"owner_mid":123,"state":"complete","filename":"new-file","cid":20,"media":media(b"replacement")})).unwrap()
+}
+fn new_metadata() -> Metadata {
+    serde_json::from_value(json!({"title":"New","desc":"First paragraph\n\nSecond paragraph","tid":231,"tags":["Rust"]})).unwrap()
+}
+#[test]
+fn edit_preview_is_offline_keeps_archive_identity_and_uses_new_cid() {
+    let server = Server::start(|_, _| panic!("Preview must not call the network"));
+    let dir = tempfile::tempdir().unwrap();
+    let result = dir.path().join("edit.json");
+    let preview = crate::revision::edit(
+        &Api::test(&server.origin),
+        &edit_snapshot(),
+        &new_metadata(),
+        &[replacement()],
+        Some(&result),
+        false,
+    )
+    .unwrap();
+    let p = &preview["plan"]["payload"];
+    assert_eq!(p["aid"], 170001);
+    assert_eq!(p["videos"][0]["cid"], 20);
+    assert_eq!(p["videos"][0]["filename"], "new-file");
+    assert_eq!(p["new_web_edit"], 1);
+    assert_eq!(p["creation_statement"]["id"], 1);
+    assert_eq!(p["desc"], "First paragraph\n\nSecond paragraph");
+    assert!(!result.exists());
+    assert!(server.snapshot().is_empty());
+}
+#[test]
+fn edit_uses_original_archive_endpoint_and_accepts_empty_success_data() {
+    let server = Server::start(|r, origin| {
+        if r.path.starts_with("/x/vupre/web/archive/view") {
+            return (200, json!({"code":0,"data":edit_snapshot()}));
+        }
+        if r.path.starts_with("/x/vu/web/edit?") {
+            let p: Value = serde_json::from_slice(&r.body).unwrap();
+            assert_eq!(p["aid"], 170001);
+            assert_eq!(p["videos"][0]["cid"], 20);
+            assert!(r.path.contains("csrf=secret-csrf"));
+            return (200, json!({"code":0}));
+        }
+        handler(r, origin)
+    });
+    let dir = tempfile::tempdir().unwrap();
+    let result = dir.path().join("edit.json");
+    let receipt = crate::revision::edit(
+        &Api::test(&server.origin),
+        &edit_snapshot(),
+        &new_metadata(),
+        &[replacement()],
+        Some(&result),
+        true,
+    )
+    .unwrap();
+    assert_eq!(receipt["state"], "accepted");
+    assert_eq!(receipt["aid"], 170001);
+    assert!(!server.snapshot().iter().any(|r| r.path.contains("/add/")));
+    assert!(
+        crate::revision::edit(
+            &Api::test(&server.origin),
+            &edit_snapshot(),
+            &new_metadata(),
+            &[replacement()],
+            Some(&result),
+            true
+        )
+        .is_err()
+    );
+    assert_eq!(
+        server
+            .snapshot()
+            .iter()
+            .filter(|r| r.method == "POST")
+            .count(),
+        1
+    );
+}
+#[test]
+fn edit_rejects_stale_archive_and_missing_replacement_cid() {
+    let server = Server::start(|r, origin| {
+        if r.path.starts_with("/x/vupre/web/archive/view") {
+            let mut s = edit_snapshot();
+            s["archive"]["title"] = json!("Concurrent edit");
+            return (200, json!({"code":0,"data":s}));
+        }
+        handler(r, origin)
+    });
+    let dir = tempfile::tempdir().unwrap();
+    assert!(
+        crate::revision::edit(
+            &Api::test(&server.origin),
+            &edit_snapshot(),
+            &new_metadata(),
+            &[replacement()],
+            Some(&dir.path().join("edit.json")),
+            true
+        )
+        .unwrap_err()
+        .to_string()
+        .contains("changed")
+    );
+    assert!(!server.snapshot().iter().any(|r| r.method == "POST"));
+    let mut upload = replacement();
+    upload.cid = None;
+    assert!(crate::revision::prepare_edit(&edit_snapshot(), &new_metadata(), &[upload]).is_err());
+    let mut collaborative = edit_snapshot();
+    collaborative["archive"]["staffs"] = json!([{"mid":456}]);
+    assert!(
+        crate::revision::prepare_edit(&collaborative, &new_metadata(), &[replacement()]).is_err()
+    );
+}
+fn section_fixture() -> Value {
+    json!({"section":{"id":22,"seasonId":11,"type":1,"title":"Main","epCount":2},"episodes":[{"id":101,"aid":1,"order":1},{"id":102,"aid":2,"order":2}]})
+}
+fn collection_handler(r: &Request, origin: &str) -> (u16, Value) {
+    if r.path.starts_with("/x2/creative/web/season/section?") {
+        return (200, json!({"code":0,"data":section_fixture()}));
+    }
+    if r.path.starts_with("/x2/creative/web/season?") {
+        return (
+            200,
+            json!({"code":0,"data":{"season":{"id":11,"mid":123,"is_pay":0}}}),
+        );
+    }
+    if r.path.starts_with("/x/vupre/web/archive/view") {
+        let mut s = edit_snapshot();
+        s["in_season"] = json!(false);
+        return (200, json!({"code":0,"data":s}));
+    }
+    handler(r, origin)
+}
+#[test]
+fn collection_add_preview_reads_state_without_writing_and_publish_has_exact_payload() {
+    let server = Server::start(|r, origin| {
+        if r.path
+            .starts_with("/x2/creative/web/season/section/episodes/add?")
+        {
+            let p: Value = serde_json::from_slice(&r.body).unwrap();
+            assert_eq!(p["sectionId"], 22);
+            assert_eq!(p["episodes"][0]["aid"], 170001);
+            assert_eq!(p["episodes"][0]["cid"], 10);
+            return (200, json!({"code":0,"data":null}));
+        }
+        collection_handler(r, origin)
+    });
+    let api = Api::test(&server.origin);
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("add.json");
+    let preview = crate::revision::add(&api, 11, 22, "170001", Some(&path), false).unwrap();
+    assert_eq!(preview["mode"], "preview");
+    assert!(!server.snapshot().iter().any(|r| r.method == "POST"));
+    assert!(!path.exists());
+    let result = crate::revision::add(&api, 11, 22, "170001", Some(&path), true).unwrap();
+    assert_eq!(result["state"], "accepted");
+}
+#[test]
+fn collection_order_requires_complete_permutation_and_uses_sort_not_order() {
+    assert!(crate::revision::prepare_order(&section_fixture(), &[101]).is_err());
+    assert!(crate::revision::prepare_order(&section_fixture(), &[101, 101]).is_err());
+    let p = crate::revision::prepare_order(&section_fixture(), &[102, 101]).unwrap();
+    assert_eq!(p["sorts"], json!([{"id":102,"sort":1},{"id":101,"sort":2}]));
+    assert_eq!(p["section"]["seasonId"], 11);
+}
+#[test]
+fn ambiguous_edit_records_attempt_and_does_not_retry() {
+    let server = Server::start(|r, origin| {
+        if r.path.starts_with("/x/vupre/web/archive/view") {
+            return (200, json!({"code":0,"data":edit_snapshot()}));
+        }
+        if r.path.starts_with("/x/vu/web/edit?") {
+            return (500, json!({"secret":"secret-session"}));
+        }
+        handler(r, origin)
+    });
+    let api = Api::test(&server.origin);
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("edit.json");
+    for _ in 0..2 {
+        assert!(
+            crate::revision::edit(
+                &api,
+                &edit_snapshot(),
+                &new_metadata(),
+                &[replacement()],
+                Some(&path),
+                true
+            )
+            .is_err()
+        );
+    }
+    assert_eq!(
+        storage::read_json::<Value>(&path).unwrap()["state"],
+        "uncertain"
+    );
+    assert_eq!(
+        server
+            .snapshot()
+            .iter()
+            .filter(|r| r.method == "POST")
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn collection_order_posts_only_the_complete_order_and_blocks_repeat_attempts() {
+    let server = Server::start(|r, origin| {
+        if r.path.starts_with("/x2/creative/web/season/section/edit?") {
+            assert_eq!(r.method, "POST");
+            let p: Value = serde_json::from_slice(&r.body).unwrap();
+            assert_eq!(p["sorts"], json!([{"id":102,"sort":1},{"id":101,"sort":2}]));
+            assert_eq!(p["section"]["id"], 22);
+            return (200, json!({"code":0}));
+        }
+        collection_handler(r, origin)
+    });
+    let api = Api::test(&server.origin);
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("order.json");
+    crate::revision::order(&api, 11, 22, &[102, 101], Some(&path), false).unwrap();
+    assert!(!server.snapshot().iter().any(|r| r.method == "POST"));
+    crate::revision::order(&api, 11, 22, &[102, 101], Some(&path), true).unwrap();
+    assert!(crate::revision::order(&api, 11, 22, &[102, 101], Some(&path), true).is_err());
+    assert_eq!(
+        server
+            .snapshot()
+            .iter()
+            .filter(|r| r.method == "POST")
+            .count(),
+        1
+    );
+}
+
+#[test]
+fn collection_changes_reject_incomplete_sections_and_wrong_owners() {
+    for wrong_owner in [false, true] {
+        let server = Server::start(move |r, origin| {
+            if wrong_owner && r.path.starts_with("/x2/creative/web/season?") {
+                return (
+                    200,
+                    json!({"code":0,"data":{"season":{"mid":999,"is_pay":0}}}),
+                );
+            }
+            if !wrong_owner && r.path.starts_with("/x2/creative/web/season/section?") {
+                let mut s = section_fixture();
+                s["section"]["epCount"] = json!(3);
+                return (200, json!({"code":0,"data":s}));
+            }
+            collection_handler(r, origin)
+        });
+        assert!(
+            crate::revision::add(&Api::test(&server.origin), 11, 22, "170001", None, true).is_err()
+        );
+        assert!(!server.snapshot().iter().any(|r| r.method == "POST"));
+    }
+}
+
+#[test]
+fn collection_add_is_a_noop_for_an_existing_member() {
+    let server = Server::start(|r, origin| {
+        if r.path.starts_with("/x2/creative/web/season/section?") {
+            let mut s = section_fixture();
+            s["episodes"][0]["aid"] = json!(170001);
+            return (200, json!({"code":0,"data":s}));
+        }
+        collection_handler(r, origin)
+    });
+    let result =
+        crate::revision::add(&Api::test(&server.origin), 11, 22, "170001", None, true).unwrap();
+    assert_eq!(result["state"], "already_member");
+    assert!(!server.snapshot().iter().any(|r| r.method == "POST"));
 }

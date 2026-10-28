@@ -2,7 +2,7 @@ use anyhow::{Context, Result, ensure};
 use bilibili_cli::{
     api::Api,
     auth::Session,
-    media, storage,
+    media, revision, storage,
     submission::{self, Metadata},
     upload::UploadReceipt,
 };
@@ -19,7 +19,7 @@ use std::{
     name = "bilibili",
     version,
     about = "Bilibili creator CLI. Submission defaults to an offline preview.",
-    long_about = "Native Rust Bilibili CLI. Uses an existing web session. Uploading media is separate from submission; only submit --publish submits to Bilibili for review/publication. A preview is local and is not a remote draft."
+    long_about = "Native Rust Bilibili CLI. Uses an existing web session. Uploading media is separate from submission. submit, edit and collection add/order require --publish to change an archive or collection. A preview is local and is not a remote draft."
 )]
 struct Cli {
     /// Private session JSON path (default: OS config directory/bilibili-cli/session.json)
@@ -63,6 +63,27 @@ enum Command {
     Categories,
     /// Read currently available creator declaration IDs
     Statements,
+    /// Read creator edit details (save stdout as the snapshot for edit)
+    Archive { id: String },
+    /// Replace one existing video's media while retaining its AID/BVID
+    Edit {
+        #[arg(long)]
+        snapshot: PathBuf,
+        #[arg(long)]
+        metadata: PathBuf,
+        #[arg(long)]
+        upload: PathBuf,
+        /// Actually update the existing archive; default is an offline preview
+        #[arg(long)]
+        publish: bool,
+        #[arg(long)]
+        result: Option<PathBuf>,
+    },
+    /// Read collections, append an owned video, or order existing episodes
+    Collection {
+        #[command(subcommand)]
+        command: Collection,
+    },
     /// Validate local media and metadata; no network requests or remote draft
     Plan {
         #[arg(long)]
@@ -118,6 +139,48 @@ enum Auth {
     Status,
     /// Delete the local session; this does not revoke the browser session
     Logout,
+}
+
+#[derive(Subcommand)]
+enum Collection {
+    List {
+        #[arg(long, default_value_t = 1)]
+        page: u32,
+        #[arg(long, default_value_t = 20)]
+        page_size: u32,
+    },
+    Show {
+        id: u64,
+    },
+    Section {
+        id: u64,
+    },
+    /// Read current state and preview adding a single-part video; --publish writes
+    Add {
+        #[arg(long)]
+        season: u64,
+        #[arg(long)]
+        section: u64,
+        #[arg(long)]
+        video: String,
+        #[arg(long)]
+        publish: bool,
+        #[arg(long)]
+        result: Option<PathBuf>,
+    },
+    /// Preview ordering every episode ID exactly once; --publish writes
+    Order {
+        #[arg(long)]
+        season: u64,
+        #[arg(long)]
+        section: u64,
+        #[arg(long, value_delimiter = ',', required = true)]
+        episodes: Vec<u64>,
+        #[arg(long)]
+        publish: bool,
+        #[arg(long)]
+        result: Option<PathBuf>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -228,6 +291,53 @@ fn run(cli: Cli) -> Result<Value> {
         Command::Me => authenticated(session_path)?.me(),
         Command::Categories => authenticated(session_path)?.categories(),
         Command::Statements => authenticated(session_path)?.statements(),
+        Command::Archive { id } => authenticated(session_path)?.archive(&id),
+        Command::Edit {
+            snapshot,
+            metadata,
+            upload,
+            publish,
+            result,
+        } => {
+            let snapshot: Value = storage::read_json(&snapshot)?;
+            let metadata = Metadata::load(&metadata)?;
+            let upload = UploadReceipt::load(&upload)?;
+            let api = if publish {
+                authenticated(session_path)?
+            } else {
+                Api::new(None)?
+            };
+            revision::edit(
+                &api,
+                &snapshot,
+                &metadata,
+                &[upload],
+                result.as_deref(),
+                publish,
+            )
+        }
+        Command::Collection { command } => {
+            let api = authenticated(session_path)?;
+            match command {
+                Collection::List { page, page_size } => api.collections(page, page_size),
+                Collection::Show { id } => api.collection(id),
+                Collection::Section { id } => api.section(id),
+                Collection::Add {
+                    season,
+                    section,
+                    video,
+                    publish,
+                    result,
+                } => revision::add(&api, season, section, &video, result.as_deref(), publish),
+                Collection::Order {
+                    season,
+                    section,
+                    episodes,
+                    publish,
+                    result,
+                } => revision::order(&api, season, section, &episodes, result.as_deref(), publish),
+            }
+        }
         Command::Archives {
             page,
             page_size,

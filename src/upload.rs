@@ -16,6 +16,8 @@ pub struct UploadReceipt {
     pub media: MediaInfo,
     pub state: String,
     pub filename: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cid: Option<u64>,
     #[serde(default)]
     pub source_name: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -47,7 +49,7 @@ impl UploadReceipt {
         Ok(receipt)
     }
     pub fn summary(&self) -> Value {
-        json!({"state":self.state,"filename":self.filename,"owner_mid":self.owner_mid,"sha256":self.media.sha256,"bytes":self.media.bytes,"confirmed_parts":self.confirmed_parts})
+        json!({"state":self.state,"filename":self.filename,"cid":self.cid,"owner_mid":self.owner_mid,"sha256":self.media.sha256,"bytes":self.media.bytes,"confirmed_parts":self.confirmed_parts})
     }
 }
 
@@ -96,6 +98,7 @@ impl Api {
                 media: media.clone(),
                 state: "preparing".into(),
                 filename: None,
+                cid: None,
                 source_name,
                 bucket: None,
                 upload_id: None,
@@ -279,6 +282,7 @@ impl Api {
         );
         receipt.filename = Some(object_filename(&bucket.upos_uri)?);
         receipt.state = "complete".into();
+        receipt.cid = Some(bucket.biz_id);
         receipt.bucket = None;
         receipt.upload_id = None;
         storage::write_json(receipt_path, &receipt, true)?;

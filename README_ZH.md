@@ -58,6 +58,8 @@ bilibili archives --page 1 --page-size 20
 | 离线检查稿件参数与媒体 | `bilibili plan --metadata submission.json --video video.mp4` |
 | 上传文件，中断后继续 | [上传与回执](docs/usage.zh-CN.md#明确上传素材) |
 | 预览、投稿、回读结果 | [投稿流程](#投稿一条视频) |
+| 保留原稿件 ID 替换视频 | [原位编辑](docs/revisions.md#replace-an-existing-video) |
+| 给已有合集添加视频、调整顺序 | [合集操作](docs/revisions.md#collections) |
 | 选择当前分区与创作声明 | `bilibili categories` · `bilibili statements` |
 
 ## 投稿一条视频
@@ -110,10 +112,12 @@ bilibili readback ./publish.receipt.json --public
 | [中文操作手册](docs/usage.zh-CN.md) · [English guide](docs/usage.md) | 会话、本地检查、上传、稿件参数与恢复流程 |
 | [实现设计](docs/design.md) | 原生接口与实现边界 |
 | [初始验证](docs/verification.md) · [扫码验证](docs/qr-login-verification.md) | 带日期的验证记录及证据范围 |
+| [原位编辑与合集](docs/revisions.md) | 保留稿件 ID、预览合集改动、回读验证 |
 | [第三方说明](THIRD_PARTY_NOTICES.md) | 协议来源与许可证 |
 
 这是使用既有 Web 会话的非官方客户端，不是平台开放 OAuth SDK。Web 接口可能变化。
-当前版本不提供已投稿件编辑／删除、定时发布或合集管理。
+原位替换目前支持普通单 P 视频；合集操作面向已有的免费合集。
+尚不支持删除稿件、定时发布和创建合集。
 
 ## 参与开发
 

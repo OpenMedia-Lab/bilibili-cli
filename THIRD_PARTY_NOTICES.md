@@ -60,3 +60,21 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 QR authentication was checked against the official passport.bilibili.com generate/poll endpoints on 2026-10-25. The current returned scan URL uses account.bilibili.com. No third-party authentication implementation was copied.
+
+## Existing-video and collection contracts — 2026-10-28
+
+The official [creator center](https://member.bilibili.com/platform/upload/video/frame)
+and [uploader](https://member.bilibili.com/york/videoup?new) supplied protocol
+evidence for creator snapshots, replacement uploads, collection reads, episode
+addition and ordering. Inspected official resource versions:
+
+- `creativecenter-v3.3543.af66a32c.js`, `creativecenter-v3.98.af66a32c.js` and
+  `creativecenter-v3.950.af66a32c.js`, served from
+  `s1.hdslb.com/bfs/static/studio/creativecenter-platform-next/static/js/async/js/`.
+- `index.d5f1eae0.js` and `665.c34b1808.js`, served from
+  `s1.hdslb.com/bfs/static/creator-monorepo/videoup/static/js/`.
+
+Only endpoint and payload contracts informed the independently written Rust code
+and tests. No frontend source or assets are distributed here. Live read responses
+were checked privately; account IDs, snapshots and session material are excluded
+from the repository.

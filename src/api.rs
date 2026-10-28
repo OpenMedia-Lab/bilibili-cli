@@ -142,6 +142,65 @@ impl Api {
         );
         Ok(Value::Object(found))
     }
+    pub fn archive(&self, id: &str) -> Result<Value> {
+        let (key, value) = video_id(id)?;
+        envelope(
+            self.request(Method::GET, true, "/x/vupre/web/archive/view", true)?
+                .query(&[(key, value)]),
+            "creator archive detail",
+        )
+    }
+    pub fn collections(&self, page: u32, page_size: u32) -> Result<Value> {
+        ensure!(
+            page > 0 && (1..=100).contains(&page_size),
+            "Page must be positive and page size 1..100"
+        );
+        envelope(
+            self.request(Method::GET, true, "/x2/creative/web/seasons", true)?
+                .query(&[("pn", page), ("ps", page_size)]),
+            "creator collections",
+        )
+    }
+    pub fn collection(&self, id: u64) -> Result<Value> {
+        ensure!(id > 0, "Collection ID must be positive");
+        envelope(
+            self.request(Method::GET, true, "/x2/creative/web/season", true)?
+                .query(&[("id", id)]),
+            "creator collection",
+        )
+    }
+    pub fn section(&self, id: u64) -> Result<Value> {
+        ensure!(id > 0, "Section ID must be positive");
+        envelope(
+            self.request(Method::GET, true, "/x2/creative/web/season/section", true)?
+                .query(&[("id", id), ("sort", 1)]),
+            "creator section",
+        )
+    }
+    pub(crate) fn mutate_creator(&self, path: &str, payload: &Value) -> Result<Value> {
+        ensure!(
+            [
+                "/x/vu/web/edit",
+                "/x2/creative/web/season/section/episodes/add",
+                "/x2/creative/web/season/section/edit"
+            ]
+            .contains(&path),
+            "Unsupported creator mutation"
+        );
+        let value = response(
+            self.request(Method::POST, true, path, true)?
+                .query(&[("csrf", self.csrf()?)])
+                .json(payload),
+            "creator mutation",
+        )?;
+        ensure!(
+            value["code"].as_i64() == Some(0),
+            "Creator mutation rejected (code {:?}); response body omitted",
+            value["code"].as_i64()
+        );
+        // Collection endpoints legitimately return code=0 with no data.
+        Ok(value.get("data").cloned().unwrap_or(Value::Null))
+    }
     pub fn statements(&self) -> Result<Value> {
         let data = envelope(
             self.request(Method::GET, true, "/x/vupre/web/archive/pre", true)?,

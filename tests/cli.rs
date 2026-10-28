@@ -126,3 +126,42 @@ fn cover_receipt_inspection_preserves_the_returned_url() {
     let value: Value = serde_json::from_slice(&output.stdout).unwrap();
     assert_eq!(value["url"], "https://i0.hdslb.com/fixture.png");
 }
+
+#[test]
+fn edit_defaults_to_offline_preview_without_loading_a_session() {
+    let dir = tempfile::tempdir().unwrap();
+    let metadata = dir.path().join("metadata.json");
+    let snapshot = dir.path().join("snapshot.json");
+    let upload = dir.path().join("upload.json");
+    fs::write(
+        &metadata,
+        r#"{"title":"Updated","tid":201,"tags":["Rust"]}"#,
+    )
+    .unwrap();
+    storage::write_json(&snapshot, &json!({"archive":{"aid":170001,"bvid":"BV17x411w7KC","mid":123,"state":0},"videos":[{"cid":10,"filename":"old-file"}],"replace_check":{"can_replace":true}}), false).unwrap();
+    storage::write_json(&upload,&json!({"schema_version":1,"owner_mid":123,"state":"complete","filename":"new-file","cid":20,"media":{"bytes":100,"sha256":"fixture","duration_seconds":2.0,"width":1920,"height":1080,"video_codec":"h264","audio_codec":"aac"}}),false).unwrap();
+    let output = cli()
+        .args([
+            "--session",
+            dir.path().join("missing.json").to_str().unwrap(),
+            "edit",
+            "--snapshot",
+            snapshot.to_str().unwrap(),
+            "--metadata",
+            metadata.to_str().unwrap(),
+            "--upload",
+            upload.to_str().unwrap(),
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let value: Value = serde_json::from_slice(&output.stdout).unwrap();
+    assert_eq!(value["mode"], "preview");
+    assert_eq!(value["plan"]["aid"], 170001);
+    assert_eq!(value["plan"]["replacement_cid"], 20);
+    assert!(!std::path::Path::new(value["result_file"].as_str().unwrap()).exists());
+}

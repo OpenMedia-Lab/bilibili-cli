@@ -60,6 +60,8 @@ Already have your own exported cookies? See [session import](docs/usage.md#sessi
 | Validate metadata and media offline | `bilibili plan --metadata submission.json --video video.mp4` |
 | Upload a file, then resume if interrupted | [Uploads and receipts](docs/usage.md#uploads-and-receipts) |
 | Preview, submit and verify a video | [Publishing workflow](#publish-a-video) |
+| Replace a published video without reposting | [Edit an existing archive](docs/revisions.md#replace-an-existing-video) |
+| Add a video to your collection | [Collection membership and order](docs/revisions.md#collections) |
 | Choose current categories and declarations | `bilibili categories` · `bilibili statements` |
 
 ## Publish a video
@@ -113,11 +115,13 @@ set `part_titles` in metadata. [Metadata reference →](docs/usage.md#metadata)
 | [Command guide](docs/usage.md) · [中文操作手册](docs/usage.zh-CN.md) | Sessions, local checks, uploads, metadata, submission and recovery |
 | [Design](docs/design.md) | Native protocol and implementation boundaries |
 | [Initial verification](docs/verification.md) · [QR verification](docs/qr-login-verification.md) | Dated checks and the limits of their evidence |
+| [Revisions and collections](docs/revisions.md) | Preserve archive IDs, preview collection changes, and verify results |
 | [Third-party notices](THIRD_PARTY_NOTICES.md) | Protocol sources and licenses |
 
 This is an unofficial client using the existing Bilibili web session, not the
-platform's OAuth SDK. Web interfaces can change. This version does not implement
-editing/deleting submissions, scheduled publishing or collection management.
+platform's OAuth SDK. Web interfaces can change. Replacements currently support
+ordinary single-part videos; collection commands use existing, unpaid collections.
+Deletion, scheduled publishing and collection creation are not implemented.
 
 ## Contribute
 

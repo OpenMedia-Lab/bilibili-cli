@@ -21,6 +21,13 @@ uploads reusable; partial uploads can resume the same UPOS object. Submission
 intent is persisted before a single POST and is never automatically retried.
 An uncertain response requires manual reconciliation against own archives.
 
+`archive` reads the creator edit snapshot. `edit` binds a replacement upload to
+the original AID, checks the current owner and stable snapshot fields, then uses
+the edit endpoint once. It retains AID/BVID and uses the replacement upload's CID.
+Collection mutations verify ownership and complete section membership; ordering
+requires each current episode ID exactly once. All three mutations require
+`--publish`, retain a private attempt receipt and never automatically retry.
+
 Tests will exercise credential parsing/redaction/permissions, upload byte ranges
 and authentication boundaries against a local HTTP server, interruption/resume,
 and the preview/publish and duplicate-submission boundaries. Live public reads

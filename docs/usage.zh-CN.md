@@ -103,7 +103,7 @@ bilibili submit --metadata /path/to/submission.json --upload /private/path/video
 bilibili submit --metadata /path/to/submission.json --upload /private/path/video.receipt.json --publish
 ```
 
-`--upload` 可重复，顺序决定分 P 顺序。`part_titles` 可在 metadata 中提供同样长度的标题数组，默认各 P 沿用总标题。支持标题、`tid`/`tid_v2`、标签、简介、动态、封面、原创/转载及来源、禁止转载；未知 metadata 字段会拒绝，防止拼写错误被静默忽略。原创 `copyright=1`，转载 `copyright=2` 且必须提供 `source`。通过 `bilibili statements` 读取当前创作声明选项，在 metadata 中设置 `creation_statement_id`；CLI 将其写入官方 Web 客户端使用的 `creation_statement: {id: ...}`。不要根据旧示例猜测声明 ID。当前不支持定时发布、编辑/删除已投稿件、合集、合作投稿及其他高级字段。
+`--upload` 可重复，顺序决定分 P 顺序。`part_titles` 可在 metadata 中提供同样长度的标题数组，默认各 P 沿用总标题。支持标题、`tid`/`tid_v2`、标签、简介、动态、封面、原创/转载及来源、禁止转载；未知 metadata 字段会拒绝，防止拼写错误被静默忽略。原创 `copyright=1`，转载 `copyright=2` 且必须提供 `source`。通过 `bilibili statements` 读取当前创作声明选项，在 metadata 中设置 `creation_statement_id`；CLI 将其写入官方 Web 客户端使用的 `creation_statement: {id: ...}`。不要根据旧示例猜测声明 ID。原位替换单 P 视频、向已有免费合集添加视频和调整顺序见[原位编辑与合集](revisions.md)；当前不支持定时发布、删除稿件或合作投稿。
 
 发布请求前写入并同步一份投稿 receipt，默认按账号与完整 payload 的 SHA-256 存放在 OS 本地数据目录的 `bilibili-cli/submissions` 下。`--result /private/path/publish.receipt.json` 可指定位置。同一 receipt 存在时拒绝再试；不要通过换路径绕过它。该保护不是平台级幂等键，修改 metadata 或更换 result 路径会绕开原记录。
 
